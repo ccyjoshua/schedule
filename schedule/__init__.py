@@ -43,6 +43,7 @@ import functools
 import logging
 import random
 import time
+import threading
 
 logger = logging.getLogger('schedule')
 
@@ -76,6 +77,23 @@ class Scheduler(object):
         runnable_jobs = (job for job in self.jobs if job.should_run)
         for job in sorted(runnable_jobs):
             self._run_job(job)
+
+    def run_continuously(self, interval=1):
+        """
+        Run in another thread
+        """
+        cease_continuous_run = threading.Event()
+
+        class ScheduleThread(threading.Thread):
+            @classmethod
+            def run(cls):
+                while not cease_continuous_run.is_set():
+                    self.run_pending()
+                    time.sleep(interval)
+
+        continuous_thread = ScheduleThread()
+        continuous_thread.start()
+        return cease_continuous_run
 
     def run_all(self, delay_seconds=0):
         """
@@ -488,6 +506,10 @@ def run_pending():
     :data:`default scheduler instance <default_scheduler>`.
     """
     default_scheduler.run_pending()
+
+
+def run_continuously(interval=1):
+    return default_scheduler.run_continuously(interval)
 
 
 def run_all(delay_seconds=0):
